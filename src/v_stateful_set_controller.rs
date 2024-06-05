@@ -9,8 +9,18 @@ pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
+#[path = "controller_examples/v_stateful_set_controller/mod.rs"]
+pub mod v_stateful_set_controller;
 pub mod vstd_ext;
 
+use builtin::*;
+use builtin_macros::*;
+
+use crate::external_api::exec::*;
+use crate::v_stateful_set_controller::exec::reconciler::VStatefulSetReconciler;
+use crate::v_stateful_set_controller::trusted::exec_types::{
+    VStatefulSet, VStatefulSetReconcileState,
+};
 use deps_hack::anyhow::Result;
 use deps_hack::futures;
 use deps_hack::kube::CustomResourceExt;
@@ -33,9 +43,13 @@ async fn main() -> Result<()> {
             serde_yaml::to_string(&deps_hack::VStatefulSet::crd())?
         );
     } else if cmd == String::from("run") {
-        info!("running vstatefulset-controller");
+        println!("running vstatefulset-controller");
+        run_controller::<deps_hack::VStatefulSet, VStatefulSetReconciler>(false).await?;
+        println!("controller terminated");
     } else if cmd == String::from("crash") {
-        info!("running vstatefulset-controller in crash-testing mode");
+        println!("running vstatefulset-controller in crash-testing mode");
+        run_controller::<deps_hack::VStatefulSet, VStatefulSetReconciler>(false).await?;
+        println!("controller terminated");
     } else {
         error!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
