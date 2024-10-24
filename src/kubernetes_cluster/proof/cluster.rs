@@ -28,7 +28,7 @@ verus! {
 
 impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-/// Prove weak_fairness is stable.
+// Prove weak_fairness is stable.
 pub proof fn action_weak_fairness_is_stable<Output>(action: Action<Self, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
@@ -37,7 +37,7 @@ pub proof fn action_weak_fairness_is_stable<Output>(action: Action<Self, (), Out
     always_p_is_stable::<Self>(split_always);
 }
 
-/// Prove weak_fairness for all input is stable.
+// Prove weak_fairness for all input is stable.
 pub proof fn tla_forall_action_weak_fairness_is_stable<Input, Output>(
     action: Action<Self, Input, Output>
 )
@@ -59,7 +59,7 @@ pub proof fn lemma_true_leads_to_crash_always_disabled(
 {
     let true_state = |s: Self| true;
     Self::disable_crash().wf1((), spec, Self::next(), true_state, Self::crash_disabled());
-    leads_to_stable_temp::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::crash_disabled()));
+    leads_to_stable::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::crash_disabled()));
 }
 
 pub proof fn lemma_true_leads_to_busy_always_disabled(
@@ -72,20 +72,20 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
 {
     let true_state = |s: Self| true;
     Self::disable_transient_failure().wf1((), spec, Self::next(), true_state, Self::busy_disabled());
-    leads_to_stable_temp::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
+    leads_to_stable::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
 }
 
-pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
-    spec: TempPred<Self>, any_pred: TempPred<Self>
+pub proof fn lemma_true_leads_to_pod_event_always_disabled(
+    spec: TempPred<Self>,
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(Self::disable_crash().weak_fairness(())),
-    ensures spec.entails(any_pred.leads_to(always(lift_state(Self::crash_disabled())))),
+        spec.entails(Self::disable_pod_event().weak_fairness(())),
+    ensures spec.entails(true_pred().leads_to(always(lift_state(Self::pod_event_disabled())))),
 {
-    valid_implies_implies_leads_to::<Self>(spec, any_pred, true_pred());
-    Self::lemma_true_leads_to_crash_always_disabled(spec);
-    leads_to_trans_temp::<Self>(spec, any_pred, true_pred(), always(lift_state(Self::crash_disabled())));
+    let true_state = |s: Self| true;
+    Self::disable_pod_event().wf1((), spec, Self::next(), true_state, Self::pod_event_disabled());
+    leads_to_stable::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::pod_event_disabled()));
 }
 
 // This desired_state_is specifies the desired state (described in the cr object)

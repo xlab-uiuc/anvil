@@ -1,6 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use deps_hack::kube;
 use vstd::prelude::*;
 
 verus! {
@@ -40,25 +39,6 @@ impl std::fmt::Debug for APIError {
     }
 }
 
-pub enum ParseDynamicObjectError {
-    MissingField,
-    UnexpectedType,
-    UnmarshalError,
-    ExecError,
-}
-
-#[verifier(external)]
-impl std::fmt::Debug for ParseDynamicObjectError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            ParseDynamicObjectError::MissingField => write!(f, "MissingField"),
-            ParseDynamicObjectError::UnexpectedType => write!(f, "UnexpectedType"),
-            ParseDynamicObjectError::UnmarshalError => write!(f, "UnmarshalError"),
-            ParseDynamicObjectError::ExecError => write!(f, "ExecError"),
-        }
-    }
-}
-
 impl APIError {
     pub fn is_object_not_found(&self) -> (res: bool)
         ensures res <==> self.is_ObjectNotFound(),
@@ -69,5 +49,8 @@ impl APIError {
         }
     }
 }
+
+pub type UnmarshalError = ();
+
 
 }

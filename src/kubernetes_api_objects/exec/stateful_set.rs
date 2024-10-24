@@ -1,30 +1,26 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, label_selector::*, object_meta::*, persistent_volume_claim::*,
     pod_template_spec::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{resource::*, stateful_set::*};
-use crate::vstd_ext::string_map::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 
-/// StatefulSet is a type of API object used for managing stateful applications,
-/// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
-/// A StatefulSet object allows different types of Volumes attached to the pods,
-/// including ConfigMaps, Secrets and PersistentVolumeClaims.
-/// It also exposes the applications using a headless service.
-///
-/// This definition is a wrapper of StatefulSet defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/stateful_set.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/.
+// StatefulSet is a type of API object used for managing stateful applications,
+// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
+// A StatefulSet object allows different types of Volumes attached to the pods,
+// including ConfigMaps, Secrets and PersistentVolumeClaims.
+// It also exposes the applications using a headless service.
+//
+// This definition is a wrapper of StatefulSet defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/stateful_set.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/.
 
 #[verifier(external_body)]
 pub struct StatefulSet {
@@ -116,9 +112,9 @@ impl StatefulSet {
         )
     }
 
-    /// Convert a DynamicObject to a StatefulSet
+    // Convert a DynamicObject to a StatefulSet
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<StatefulSet, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<StatefulSet, UnmarshalError>)
         ensures
             res.is_Ok() == StatefulSetView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == StatefulSetView::unmarshal(obj@).get_Ok_0(),
@@ -128,7 +124,7 @@ impl StatefulSet {
             let res = StatefulSet { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

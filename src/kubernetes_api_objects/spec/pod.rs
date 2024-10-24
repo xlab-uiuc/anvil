@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    affinity::*, common::*, container::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-    resource_requirements::*, toleration::*, volume::*,
+    affinity::*, common::*, container::*, dynamic::*, object_meta::*, resource::*, toleration::*,
+    volume::*,
 };
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 
-/// PodView is the ghost type of Pod.
-/// It is supposed to be used in spec and proof code.
+// PodView is the ghost type of Pod.
+
 
 pub struct PodView {
     pub metadata: ObjectMetaView,
@@ -86,13 +84,13 @@ impl ResourceView for PodView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<PodView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !PodView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !PodView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(PodView {
                 metadata: obj.metadata,
@@ -113,11 +111,11 @@ impl ResourceView for PodView {
 
     closed spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<PodStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<PodStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<PodStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity(){}

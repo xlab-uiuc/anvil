@@ -21,7 +21,7 @@ pub type VRSMessage = Message<EmptyTypeView, EmptyTypeView>;
 pub struct VReplicaSetReconciler {}
 
 pub struct VReplicaSetReconcileState {
-    pub reconcile_step: VReplicaSetReconcileStepView,
+    pub reconcile_step: VReplicaSetReconcileStep,
     pub filtered_pods: Option<Seq<PodView>>,
 }
 
@@ -69,7 +69,7 @@ impl ResourceView for VReplicaSetView {
 
     open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind { Kind::CustomResourceKind }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind("vreplicaset"@) }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
@@ -94,13 +94,13 @@ impl ResourceView for VReplicaSetView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<VReplicaSetView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<VReplicaSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !VReplicaSetView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !VReplicaSetView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(VReplicaSetView {
                 metadata: obj.metadata,
@@ -121,11 +121,11 @@ impl ResourceView for VReplicaSetView {
 
     closed spec fn marshal_spec(s: VReplicaSetSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<VReplicaSetSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<VReplicaSetSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<VReplicaSetStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<VReplicaSetStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<VReplicaSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -147,6 +147,14 @@ impl ResourceView for VReplicaSetView {
 
 impl CustomResourceView for VReplicaSetView {
     proof fn kind_is_custom_resource() {}
+
+    open spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool {
+        obj_spec.replicas.is_Some() ==> obj_spec.replicas.get_Some_0() >= 0
+    }
+
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status())
+    {}
 }
 
 pub struct VReplicaSetSpecView {

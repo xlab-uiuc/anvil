@@ -1,15 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::spec::{
-    common::*, marshal::*, object_meta::*, owner_reference::*, resource::*,
-};
+use crate::kubernetes_api_objects::spec::{common::*, object_meta::*, resource::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
 
-/// DynamicObjectView is the ghost type of DynamicObject.
-/// It is supposed to be used in spec and proof code.
+// DynamicObjectView is the ghost type of DynamicObject.
+
 
 pub struct DynamicObjectView {
     pub kind: Kind,

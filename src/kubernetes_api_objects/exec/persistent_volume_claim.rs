@@ -1,33 +1,35 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*, volume_resource_requirements::*,
 };
 use crate::kubernetes_api_objects::spec::{persistent_volume_claim::*, resource::*};
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 
-/// PersistentVolumeClaim is a type of API object representing a request for storage (typically used by a Pod).
-/// PersistentVolumeClaim objects are often defined in StatefulSet objects as the Volumes mounted to the Pods.
-///
-/// This definition is a wrapper of PersistentVolumeClaim defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/persistent_volume_claim.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/storage/persistent-volumes/.
+// PersistentVolumeClaim is a type of API object representing a request for storage (typically used by a Pod).
+// PersistentVolumeClaim objects are often defined in StatefulSet objects as the Volumes mounted to the Pods.
+//
+// This definition is a wrapper of PersistentVolumeClaim defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/persistent_volume_claim.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/storage/persistent-volumes/.
 
 #[verifier(external_body)]
 pub struct PersistentVolumeClaim {
     inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
 }
 
-impl PersistentVolumeClaim {
-    pub spec fn view(&self) -> PersistentVolumeClaimView;
+impl View for PersistentVolumeClaim {
+    type V = PersistentVolumeClaimView;
 
+    spec fn view(&self) -> PersistentVolumeClaimView;
+}
+
+impl PersistentVolumeClaim {
     #[verifier(external_body)]
     pub fn eq(&self, other: &Self) -> (b: bool)
         ensures b == (self.view() == other.view())
@@ -93,7 +95,7 @@ impl PersistentVolumeClaim {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<PersistentVolumeClaim, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<PersistentVolumeClaim, UnmarshalError>)
         ensures
             res.is_Ok() == PersistentVolumeClaimView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == PersistentVolumeClaimView::unmarshal(obj@).get_Ok_0(),
@@ -103,7 +105,7 @@ impl PersistentVolumeClaim {
             let res = PersistentVolumeClaim { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

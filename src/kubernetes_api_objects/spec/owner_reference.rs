@@ -1,16 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{common::*, marshal::*, resource::*};
-use crate::vstd_ext::string_map::*;
+use crate::kubernetes_api_objects::spec::common::*;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::string::*;
 
 verus! {
 
-/// OwnerReferenceView is the ghost type of OwnerReference.
-/// It is supposed to be used in spec and proof code.
+// OwnerReferenceView is the ghost type of OwnerReference.
+
 
 pub struct OwnerReferenceView {
     pub block_owner_deletion: Option<bool>,

@@ -21,7 +21,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -44,7 +44,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -67,7 +67,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -90,7 +90,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -104,6 +104,52 @@ jobs:
           vargo build --release
       - name: Verify vreplicaset controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh vreplicaset_controller.rs --time
+  v2-vreplicaset-verification:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
+      - name: Move Verus
+        run: mv verus ../verus
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Build Verus
+        run: |
+          cd ../verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+      - name: Verify vreplicaset controller
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vreplicaset_controller.rs --time
+  v2-vdeployment-verification:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
+      - name: Move Verus
+        run: mv verus ../verus
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Build Verus
+        run: |
+          cd ../verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+      - name: Verify vdeployment controller
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh v2_vdeployment_controller.rs --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
@@ -113,7 +159,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -136,7 +182,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -170,7 +216,7 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-          ref: 8e24346e9a93e25bca6b66505f4007645118df43
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
       - name: Move Verus
         run: mv verus ../verus
       - name: Install Rust toolchain
@@ -184,6 +230,29 @@ jobs:
           vargo build --release
       - name: Verify conformance of the executable model
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil.rs --crate-type lib --time
+  framework-v2-verification:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+          ref: 0d7b766446cd33521132cff03b6108705e83884f
+      - name: Move Verus
+        run: mv verus ../verus
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Build Verus
+        run: |
+          cd ../verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+      - name: Verify conformance of the executable model
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh anvil_v2.rs --crate-type lib --time
   fluent-e2e-test:
     runs-on: ubuntu-20.04
     steps:

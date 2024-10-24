@@ -1,28 +1,25 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::exec::{api_resource::*, dynamic::*};
-use crate::kubernetes_api_objects::spec::{
-    api_method::*,
-    common::{Kind, ObjectRef},
-};
-use crate::vstd_ext::string_view::*;
-use vstd::{prelude::*, string::*, view::*};
+use crate::kubernetes_api_objects::exec::{api_resource::*, dynamic::*, preconditions::*};
+use crate::kubernetes_api_objects::spec::{api_method::*, common::ObjectRef};
+use crate::vstd_ext::option_lib::*;
+use vstd::prelude::*;
 
 use vstd::pervasive::unreached;
 
 verus! {
 
-/// KubeAPIRequest represents API requests used in executable.
-///
-/// kube-rs uses a generic type kube::api::Api as an api handle to send
-/// requests to the Kubernetes API.
-/// So KubeAPIRequest wraps around the variables used to instantiate kube::api::Api
-/// and to call its methods.
-///
-/// Here we have one variant for each object kind because we need
-/// the concrete object type to instantiate a kube::api::Api.
-/// For example, to create a ConfigMap, we need to pass a ConfigMap object.
+// KubeAPIRequest represents API requests used in executable.
+//
+// kube-rs uses a generic type kube::api::Api as an api handle to send
+// requests to the Kubernetes API.
+// So KubeAPIRequest wraps around the variables used to instantiate kube::api::Api
+// and to call its methods.
+//
+// Here we have one variant for each object kind because we need
+// the concrete object type to instantiate a kube::api::Api.
+// For example, to create a ConfigMap, we need to pass a ConfigMap object.
 
 pub enum KubeAPIRequest {
     GetRequest(KubeGetRequest),
@@ -33,7 +30,7 @@ pub enum KubeAPIRequest {
     UpdateStatusRequest(KubeUpdateStatusRequest),
 }
 
-/// KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
+// KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
 
 pub struct KubeGetRequest {
     pub api_resource: ApiResource,
@@ -61,7 +58,7 @@ impl View for KubeGetRequest {
     }
 }
 
-/// KubeListRequest has the namespace to instantiate an Api.
+// KubeListRequest has the namespace to instantiate an Api.
 
 pub struct KubeListRequest {
     pub api_resource: ApiResource,
@@ -85,7 +82,7 @@ impl View for KubeListRequest {
     }
 }
 
-/// KubeCreateRequest has the obj as the parameter of Api.create().
+// KubeCreateRequest has the obj as the parameter of Api.create().
 
 pub struct KubeCreateRequest {
     pub api_resource: ApiResource,
@@ -110,12 +107,13 @@ impl View for KubeCreateRequest {
     }
 }
 
-/// KubeDeleteRequest has the name as the parameter of Api.delete(), and namespace to instantiate an Api.
+// KubeDeleteRequest has the name as the parameter of Api.delete(), and namespace to instantiate an Api.
 
 pub struct KubeDeleteRequest {
     pub api_resource: ApiResource,
     pub name: String,
     pub namespace: String,
+    pub preconditions: Option<Preconditions>,
 }
 
 impl KubeDeleteRequest {
@@ -133,12 +131,13 @@ impl View for KubeDeleteRequest {
                 kind: self.api_resource@.kind,
                 name: self.name@,
                 namespace: self.namespace@,
-            }
+            },
+            preconditions: option_view(self.preconditions),
         }
     }
 }
 
-/// KubeUpdateRequest has the obj as the parameter of Api.replace().
+// KubeUpdateRequest has the obj as the parameter of Api.replace().
 
 pub struct KubeUpdateRequest {
     pub api_resource: ApiResource,
@@ -165,7 +164,7 @@ impl View for KubeUpdateRequest {
     }
 }
 
-/// KubeUpdateRequest has the obj as the parameter of Api.replace_status().
+// KubeUpdateRequest has the obj as the parameter of Api.replace_status().
 
 pub struct KubeUpdateStatusRequest {
     pub api_resource: ApiResource,
@@ -207,6 +206,7 @@ impl View for KubeAPIRequest {
     }
 }
 
+// TODO: replace it with option_view
 pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
     match req {
         Some(req) => Some(req@),
@@ -214,9 +214,9 @@ pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequ
     }
 }
 
-/// KubeAPIResponse represents API results used in executable.
-///
-/// KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
+// KubeAPIResponse represents API results used in executable.
+//
+// KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
 
 #[is_variant]
 pub enum KubeAPIResponse {
@@ -228,7 +228,7 @@ pub enum KubeAPIResponse {
     UpdateStatusResponse(KubeUpdateStatusResponse),
 }
 
-/// KubeGetResponse has the object returned by KubeGetRequest.
+// KubeGetResponse has the object returned by KubeGetRequest.
 
 pub struct KubeGetResponse {
     pub res: Result<DynamicObject, APIError>,
@@ -244,7 +244,7 @@ impl View for KubeGetResponse {
     }
 }
 
-/// KubeListResponse has the sequence of objects returned by KubeListRequest.
+// KubeListResponse has the sequence of objects returned by KubeListRequest.
 
 pub struct KubeListResponse {
     pub res: Result<Vec<DynamicObject>, APIError>,
@@ -260,7 +260,7 @@ impl View for KubeListResponse {
     }
 }
 
-/// KubeCreateResponse has the object created by KubeCreateRequest.
+// KubeCreateResponse has the object created by KubeCreateRequest.
 
 pub struct KubeCreateResponse {
     pub res: Result<DynamicObject, APIError>,
@@ -276,7 +276,7 @@ impl View for KubeCreateResponse {
     }
 }
 
-/// DeleteResponse has (last version of) the object deleted by DeleteRequest.
+// DeleteResponse has (last version of) the object deleted by DeleteRequest.
 
 pub struct KubeDeleteResponse {
     pub res: Result<(), APIError>,
@@ -292,7 +292,7 @@ impl View for KubeDeleteResponse {
     }
 }
 
-/// KubeUpdateResponse has the object updated by KubeUpdateRequest.
+// KubeUpdateResponse has the object updated by KubeUpdateRequest.
 
 pub struct KubeUpdateResponse {
     pub res: Result<DynamicObject, APIError>,
@@ -308,7 +308,7 @@ impl View for KubeUpdateResponse {
     }
 }
 
-/// KubeUpdateStatusResponse has the object updated by KubeUpdateStatusRequest.
+// KubeUpdateStatusResponse has the object updated by KubeUpdateStatusRequest.
 
 pub struct KubeUpdateStatusResponse {
     pub res: Result<DynamicObject, APIError>,
@@ -519,6 +519,7 @@ impl KubeAPIResponse {
     }
 }
 
+// TODO: replace it with option_view
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
     match resp {
         Some(resp) => Some(resp@),

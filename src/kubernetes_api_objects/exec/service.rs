@@ -1,26 +1,24 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{resource::*, service::*};
 use crate::vstd_ext::string_map::StringMap;
-use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 
-/// Service is a type of API object used for exposing a network application
-/// that is running as one or more Pods in your cluster.
-/// A Service object can be used to assign stable IP addresses and DNS names to pods.
-///
-/// This definition is a wrapper of Service defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/service.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/services-networking/service/.
+// Service is a type of API object used for exposing a network application
+// that is running as one or more Pods in your cluster.
+// A Service object can be used to assign stable IP addresses and DNS names to pods.
+//
+// This definition is a wrapper of Service defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/service.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/services-networking/service/.
 
 #[verifier(external_body)]
 pub struct Service {
@@ -104,7 +102,7 @@ impl Service {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Service, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Service, UnmarshalError>)
         ensures
             res.is_Ok() == ServiceView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == ServiceView::unmarshal(obj@).get_Ok_0(),
@@ -114,7 +112,7 @@ impl Service {
             let res = Service { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

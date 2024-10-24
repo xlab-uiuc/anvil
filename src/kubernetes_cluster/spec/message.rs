@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*};
+use crate::kubernetes_api_objects::spec::{api_method::*, common::*, dynamic::*, preconditions::*};
 use crate::vstd_ext::string_view::*;
 use vstd::{multiset::*, prelude::*};
 
@@ -29,6 +29,7 @@ pub enum HostId {
     CustomController,
     ExternalAPI,
     Client,
+    PodEvent,
 }
 
 pub type RestId = nat;
@@ -260,6 +261,10 @@ pub open spec fn client_req_msg(msg_content: MessageContent<I, O>) -> Message<I,
     Message::form_msg(HostId::Client, HostId::ApiServer, msg_content)
 }
 
+pub open spec fn pod_event_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
+    Message::form_msg(HostId::PodEvent, HostId::ApiServer, msg_content)
+}
+
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message<I, O>, req_msg: Message<I, O>) -> bool {
     ||| {
         &&& resp_msg.content.is_APIResponse()
@@ -368,9 +373,10 @@ pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjec
     }), req_id)
 }
 
-pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent<I, O> {
+pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId, preconditions: Option<PreconditionsView>) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
+        preconditions: preconditions,
     }), req_id)
 }
 

@@ -1,16 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{common::*, marshal::*, owner_reference::*, resource::*};
-use crate::vstd_ext::string_map::*;
+use crate::kubernetes_api_objects::spec::{common::*, owner_reference::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::string::*;
 
 verus! {
 
-/// ObjectMetaView is the ghost type of ObjectMeta.
-/// It is supposed to be used in spec and proof code.
+// ObjectMetaView is the ghost type of ObjectMeta.
+
 
 pub struct ObjectMetaView {
     pub name: Option<StringView>,

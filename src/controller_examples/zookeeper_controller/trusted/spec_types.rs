@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, object_meta::*, owner_reference::*,
+    resource::*, resource_requirements::*, toleration::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::*, message::*};
 use crate::vstd_ext::string_view::*;
@@ -70,7 +70,7 @@ impl ResourceView for ZookeeperClusterView {
 
     open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind { Kind::CustomResourceKind }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind("zookeeper"@) }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
@@ -95,13 +95,13 @@ impl ResourceView for ZookeeperClusterView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ZookeeperClusterView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ZookeeperClusterView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(ZookeeperClusterView {
                 metadata: obj.metadata,
@@ -122,11 +122,11 @@ impl ResourceView for ZookeeperClusterView {
 
     closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<ZookeeperClusterStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<ZookeeperClusterStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<ZookeeperClusterStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -152,6 +152,16 @@ impl ResourceView for ZookeeperClusterView {
 
 impl CustomResourceView for ZookeeperClusterView {
     proof fn kind_is_custom_resource() {}
+
+    open spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool {
+        &&& obj_spec.replicas >= 3
+        &&& obj_spec.conf.sync_limit >= 1
+        &&& obj_spec.conf.min_session_timeout <= obj_spec.conf.max_session_timeout
+    }
+
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status())
+    {}
 }
 
 pub struct ZookeeperClusterSpecView {

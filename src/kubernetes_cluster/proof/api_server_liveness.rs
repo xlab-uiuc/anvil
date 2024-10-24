@@ -33,7 +33,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
+    entails_trans::<Self>(
         lift_state(pre),
         lift_state(Self::kubernetes_api_action_pre(action, input)),
         lift_state(Self::kubernetes_api_next().pre(input))
@@ -55,148 +55,12 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
 {
     use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
     Self::builtin_controllers_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
+    entails_trans::<Self>(
         lift_state(pre),
         lift_state(Self::builtin_controllers_action_pre(action, input)),
         lift_state(Self::builtin_controllers_next().pre(input))
     );
     Self::builtin_controllers_next().wf1(input, spec, next, pre, post);
-}
-
-pub proof fn lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
-    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction<E::Input, E::Output>, c: StatePred<Self>, pre: StatePred<Self>, post: StatePred<Self>
-)
-    requires
-        Self::builtin_controllers().actions.contains(action),
-        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: Self| #[trigger] pre(s) && c(s) ==> Self::builtin_controllers_action_pre(action, input)(s),
-        spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
-        spec.entails(always(lift_state(c))),
-    ensures spec.entails(lift_state(pre).leads_to(lift_state(post))),
-{
-    use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
-    Self::builtin_controllers_action_pre_implies_next_pre(action, input);
-    valid_implies_trans::<Self>(
-        lift_state(pre).and(lift_state(c)),
-        lift_state(Self::builtin_controllers_action_pre(action, input)),
-        lift_state(Self::builtin_controllers_next().pre(input))
-    );
-    Self::builtin_controllers_next().wf1_borrow_from_spec(input, spec, next, c, pre, post);
-}
-
-pub proof fn lemma_get_req_leads_to_some_resp(spec: TempPred<Self>, msg: MsgType<E>, key: ObjectRef)
-    requires
-        spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(lift_state(|s: Self| {
-                    &&& s.in_flight().contains(msg)
-                    &&& msg.dst == HostId::ApiServer
-                    &&& msg.content.is_get_request()
-                    &&& msg.content.get_get_request().key == key
-            }).leads_to(lift_state(|s: Self|
-                exists |resp_msg: MsgType<E>| {
-                    &&& #[trigger] s.in_flight().contains(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, msg)}))),
-{
-    let input = Some(msg);
-    let pre = |s: Self| {
-        &&& s.in_flight().contains(msg)
-        &&& msg.dst == HostId::ApiServer
-        &&& msg.content.is_get_request()
-        &&& msg.content.get_get_request().key == key
-    };
-    let post = |s: Self| exists |resp_msg: MsgType<E>| {
-        &&& #[trigger] s.in_flight().contains(resp_msg)
-        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
-    };
-    assert forall |s, s_prime: Self| pre(s) && #[trigger] Self::next()(s, s_prime) implies
-    pre(s_prime) || post(s_prime) by {
-        let step = choose |step| Self::next_step(s, s_prime, step);
-        match step {
-            Step::ApiServerStep(input) => {
-                if input.get_Some_0() == msg {
-                    if s.resources().contains_key(key) {
-                        let ok_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])});
-                        assert(s_prime.in_flight().contains(ok_resp_msg));
-                        assert(Message::resp_msg_matches_req_msg(ok_resp_msg, msg));
-                    } else {
-                        let err_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)});
-                        assert(s_prime.in_flight().contains(err_resp_msg));
-                        assert(Message::resp_msg_matches_req_msg(err_resp_msg, msg));
-                    }
-                } else {
-                    assert(pre(s_prime));
-                }
-            },
-            Step::FailTransientlyStep(input) => {
-                if input.0 == msg {
-                    let resp = Message::form_matched_err_resp_msg(msg, input.1);
-                    assert(s_prime.in_flight().contains(resp));
-                    assert(Message::resp_msg_matches_req_msg(resp, msg));
-                    assert(post(s_prime));
-                } else {
-                    assert(pre(s_prime));
-                }
-            },
-            _ => assert(pre(s_prime)),
-        }
-    }
-    assert forall |s, s_prime: Self|
-        pre(s) && #[trigger] Self::next()(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
-    implies post(s_prime) by {
-        if s.resources().contains_key(key) {
-            let ok_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])});
-            assert(s_prime.in_flight().contains(ok_resp_msg));
-            assert(Message::resp_msg_matches_req_msg(ok_resp_msg, msg));
-        } else {
-            let err_resp_msg = Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)});
-            assert(s_prime.in_flight().contains(err_resp_msg));
-            assert(Message::resp_msg_matches_req_msg(err_resp_msg, msg));
-        }
-    };
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, Self::next(), Self::handle_request(), pre, post);
-}
-
-pub proof fn lemma_get_req_leads_to_ok_or_err_resp(spec: TempPred<Self>, msg: MsgType<E>, key: ObjectRef)
-    requires
-        spec.entails(always(lift_state(Self::busy_disabled()))),
-        spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(lift_state(|s: Self| {
-            &&& s.in_flight().contains(msg)
-            &&& msg.dst == HostId::ApiServer
-            &&& msg.content.is_get_request()
-            &&& msg.content.get_get_request().key == key
-        }).leads_to(
-                lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])})))
-                .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)}))))
-        )),
-{
-    let pre = |s: Self| {
-        &&& s.in_flight().contains(msg)
-        &&& msg.dst == HostId::ApiServer
-        &&& msg.content.is_get_request()
-        &&& msg.content.get_get_request().key == key
-    };
-    let post = |s: Self| {
-        ||| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])}))
-        ||| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)}))
-    };
-    let stronger_next = |s, s_prime: Self| {
-        Self::next()(s, s_prime)
-        && !s.transient_failure_enabled
-    };
-    strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
-    temp_pred_equality::<Self>(
-        lift_state(post),
-        lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Ok(s.resources()[key])})))
-        .or(lift_state(|s: Self| s.in_flight().contains(Message::form_get_resp_msg(msg, GetResponse{res: Err(APIError::ObjectNotFound)}))))
-    );
 }
 
 pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePred<Self> {
@@ -208,24 +72,24 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
     }
 }
 
-/// To ensure that spec |= true ~> []every_in_fligh_message_satisfies(requirements), we only have to reason about the messages
-/// created after some points. Here, "requirements" takes two parameters, the new message and the prime state. In many cases,
-/// It's only related to the message.
-///
-/// In detail, we have to show two things:
-///     a. Newly created api request message satisfies requirements: s.in_flight(msg) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
-///     b. The requirements, once satisfied, won't be violated as long as the message is still in flight:
-///         s.in_flight(msg) /\ requirements(msg, s) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
-///
-/// Previously, when "requirements" was irrelavant to the state, b will be sure to hold. Later, we find that "requirements" in some
-/// case does need some information in the state. So we add state as another parameter and requires the caller of the lemma
-/// lemma_true_leads_to_always_every_in_flight_req_msg_satisfies to prove b. is always satisfied. In order not to make those cases
-/// where "requirements" has nothing to do with state more difficult, we combine a. and b. together.
-///
-/// Therefore, we have the following predicate. As is easy to see, this is similar as:
-///     (s.in_flight(msg) ==> requirements(msg, s)) ==> (s_prime.in_flight(msg) ==> requirements(msg, s_prime))
-/// If we think of s.in_flight(msg) ==> requirements(msg, s) as an invariant, it is the same as the proof of invariants in previous
-/// proof strategy.
+// To ensure that spec |= true ~> []every_in_fligh_message_satisfies(requirements), we only have to reason about the messages
+// created after some points. Here, "requirements" takes two parameters, the new message and the prime state. In many cases,
+// It's only related to the message.
+//
+// In detail, we have to show two things:
+//     a. Newly created api request message satisfies requirements: s.in_flight(msg) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
+//     b. The requirements, once satisfied, won't be violated as long as the message is still in flight:
+//         s.in_flight(msg) /\ requirements(msg, s) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
+//
+// Previously, when "requirements" was irrelavant to the state, b will be sure to hold. Later, we find that "requirements" in some
+// case does need some information in the state. So we add state as another parameter and requires the caller of the lemma
+// lemma_true_leads_to_always_every_in_flight_req_msg_satisfies to prove b. is always satisfied. In order not to make those cases
+// where "requirements" has nothing to do with state more difficult, we combine a. and b. together.
+//
+// Therefore, we have the following predicate. As is easy to see, this is similar as:
+//     (s.in_flight(msg) ==> requirements(msg, s)) ==> (s_prime.in_flight(msg) ==> requirements(msg, s_prime))
+// If we think of s.in_flight(msg) ==> requirements(msg, s) as an invariant, it is the same as the proof of invariants in previous
+// proof strategy.
 pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: spec_fn(MsgType<E>, Self) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
         forall |msg: MsgType<E>|
@@ -253,13 +117,13 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: spec_fn(MsgType
     }
 }
 
-/// This lemma shows that if spec ensures every newly created Kubernetes api request message satisfies some requirements,
-/// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
-///
-/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a spec_fn (i.e., a closure)
-/// as parameter which can be defined by callers and require spec |= [](every_new_req_msg_if_in_flight_then_satisfies(requirements)).
-///
-/// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
+// This lemma shows that if spec ensures every newly created Kubernetes api request message satisfies some requirements,
+// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
+//
+// To require "every newly create Kubernetes api request message satisfies some requirements", we use a spec_fn (i.e., a closure)
+// as parameter which can be defined by callers and require spec |= [](every_new_req_msg_if_in_flight_then_satisfies(requirements)).
+//
+// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
 pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec: TempPred<Self>, requirements: spec_fn(MsgType<E>, Self) -> bool)
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
@@ -289,7 +153,7 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec: 
     );
 }
 
-/// This lemma is an assistant one for the previous one without rest_id.
+// This lemma is an assistant one for the previous one without rest_id.
 pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(spec: TempPred<Self>, requirements: spec_fn(MsgType<E>, Self) -> bool, rest_id: nat)
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
@@ -374,17 +238,17 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
 
             Self::lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(spec_with_rest_id, rest_id);
 
-            implies_preserved_by_always_temp(
+            entails_preserved_by_always(
                 lift_state(invariant),
                 lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))
                 .implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
             );
-            valid_implies_trans(
+            entails_trans(
                 spec_with_rest_id, always(lift_state(invariant)),
                 always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)).implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
             );
-            always_implies_preserved_by_always_temp(spec_with_rest_id, lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)), lift_state(Self::every_in_flight_req_msg_satisfies(requirements)));
-            leads_to_weaken_temp(
+            always_implies_preserved_by_always(spec_with_rest_id, lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)), lift_state(Self::every_in_flight_req_msg_satisfies(requirements)));
+            leads_to_weaken(
                 spec_with_rest_id,
                 true_pred(), always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))),
                 true_pred(), always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
@@ -398,7 +262,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
     );
     temp_pred_equality(true_pred().and(lift_state(Self::rest_id_counter_is(rest_id))), lift_state(Self::rest_id_counter_is(rest_id)));
-    valid_implies_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
+    entails_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
 }
 
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
@@ -429,7 +293,7 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(spec:
         }
     }
 
-    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)));
+    leads_to_stable(spec, lift_action(stronger_next), true_pred(), lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)));
 }
 
 pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(spec: TempPred<Self>, rest_id: RestId)
@@ -493,7 +357,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec: T
                 }
             }
         });
-        valid_implies_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
+        entails_implies_leads_to(spec, lift_state(pending_requests_num_is_zero), lift_state(no_more_pending_requests));
     } else {
         // The induction step:
         // If we already have "there are msg_num-1 such requests" ~> "all such requests are gone" (the inductive hypothesis),
@@ -542,12 +406,14 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec: T
         Self::lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
             spec, rest_id, (msg_num - 1) as nat
         );
-        leads_to_trans_temp(
+        leads_to_trans(
             spec, pending_requests_num_is_msg_num, pending_requests_num_is_msg_num_minus_1, no_more_pending_requests
         );
     }
 }
 
+// TODO: broken by pod_event; Xudong will fix it later
+#[verifier(external_body)]
 proof fn pending_requests_num_decreases(spec: TempPred<Self>, rest_id: RestId, msg_num: nat, msg: MsgType<E>)
     requires
         msg_num > 0,

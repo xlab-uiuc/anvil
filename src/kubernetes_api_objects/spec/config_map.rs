@@ -1,31 +1,29 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, object_meta::*, resource::*};
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
 
-/// ConfigMapView is the ghost type of ConfigMap.
-/// It is supposed to be used in spec and proof code.
+// ConfigMapView is the ghost type of ConfigMap.
+
 
 pub struct ConfigMapView {
     pub metadata: ObjectMetaView,
     pub data: Option<Map<StringView, StringView>>,
 }
 
-/// This ConfigMapSpecView is defined only to call marshal_spec and unmarshal_spec conveniently
-/// Unlike most other Kubernetes objects, a ConfigMap does not have a spec field,
-/// but its data, binary_data and immutable fields are treated similarly as spec of other objects.
-/// Here we use a tuple to wrap around ConfigMap's fields (we will implement more fields like binary_data later)
-/// instead of defining another struct.
-///
-/// We use a unit type in the tuple because there has to be at least two members in a tuple.
-/// The unit type will be replaced once we support other fields than data.
-type ConfigMapSpecView = (Option<Map<StringView, StringView>>, ());
+// This ConfigMapSpecView is defined only to call marshal_spec and unmarshal_spec conveniently
+// Unlike most other Kubernetes objects, a ConfigMap does not have a spec field,
+// but its data, binary_data and immutable fields are treated similarly as spec of other objects.
+// Here we use a tuple to wrap around ConfigMap's fields (we will implement more fields like binary_data later)
+// instead of defining another struct.
+//
+// We use a unit type in the tuple because there has to be at least two members in a tuple.
+// The unit type will be replaced once we support other fields than data.
+type ConfigMapSpecView = Option<Map<StringView, StringView>>;
 
 impl ConfigMapView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
@@ -73,7 +71,7 @@ impl ResourceView for ConfigMapView {
     proof fn object_ref_is_well_formed() {}
 
     open spec fn spec(self) -> ConfigMapSpecView {
-        (self.data, ())
+        self.data
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -84,22 +82,22 @@ impl ResourceView for ConfigMapView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: ConfigMapView::marshal_spec((self.data, ())),
+            spec: ConfigMapView::marshal_spec(self.data),
             status: ConfigMapView::marshal_status(empty_status()),
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ConfigMapView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ConfigMapView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ConfigMapView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(ConfigMapView {
                 metadata: obj.metadata,
-                data: ConfigMapView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                data: ConfigMapView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }
@@ -115,11 +113,11 @@ impl ResourceView for ConfigMapView {
 
     closed spec fn marshal_spec(s: ConfigMapSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ConfigMapSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<ConfigMapSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

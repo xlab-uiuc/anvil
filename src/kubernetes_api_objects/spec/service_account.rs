@@ -1,24 +1,20 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-};
-use crate::vstd_ext::string_map::*;
-use crate::vstd_ext::string_view::*;
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, object_meta::*, resource::*};
 use vstd::prelude::*;
 
 verus! {
 
-/// ServiceAccountView is the ghost type of ServiceAccount.
-/// It is supposed to be used in spec and proof code.
+// ServiceAccountView is the ghost type of ServiceAccount.
+
 
 pub struct ServiceAccountView {
     pub metadata: ObjectMetaView,
     pub automount_service_account_token: Option<bool>,
 }
 
-type ServiceAccountSpecView = (Option<bool>, ());
+type ServiceAccountSpecView = Option<bool>;
 
 impl ServiceAccountView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceAccountView {
@@ -59,7 +55,7 @@ impl ResourceView for ServiceAccountView {
     proof fn object_ref_is_well_formed() {}
 
     open spec fn spec(self) -> ServiceAccountSpecView {
-        (self.automount_service_account_token, ())
+        self.automount_service_account_token
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -70,22 +66,22 @@ impl ResourceView for ServiceAccountView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: ServiceAccountView::marshal_spec((self.automount_service_account_token, ())),
+            spec: ServiceAccountView::marshal_spec(self.automount_service_account_token),
             status: ServiceAccountView::marshal_status(empty_status()),
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceAccountView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceAccountView, UnmarshalError> {
             if obj.kind != Self::kind() {
-                Err(ParseDynamicObjectError::UnmarshalError)
+                Err(())
             } else if !ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() {
-                Err(ParseDynamicObjectError::UnmarshalError)
+                Err(())
             } else if !ServiceAccountView::unmarshal_status(obj.status).is_Ok() {
-                Err(ParseDynamicObjectError::UnmarshalError)
+                Err(())
             } else {
                 Ok(ServiceAccountView {
                     metadata: obj.metadata,
-                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0(),
                 })
             }
     }
@@ -101,11 +97,11 @@ impl ResourceView for ServiceAccountView {
 
     closed spec fn marshal_spec(s: ServiceAccountSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

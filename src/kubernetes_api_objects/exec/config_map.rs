@@ -1,24 +1,24 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{config_map::*, resource::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 
 verus! {
 
-/// ConfigMap is a type of API object used to store non-confidential data in key-value pairs.
-/// A ConfigMap object can be used to set environment variables or configuration files
-/// in a Volume mounted to a Pod.
-///
-/// This definition is a wrapper of ConfigMap defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/config_map.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/configuration/configmap/.
+// ConfigMap is a type of API object used to store non-confidential data in key-value pairs.
+// A ConfigMap object can be used to set environment variables or configuration files
+// in a Volume mounted to a Pod.
+//
+// This definition is a wrapper of ConfigMap defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/config_map.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/configuration/configmap/.
 
 #[verifier(external_body)]
 pub struct ConfigMap {
@@ -94,7 +94,7 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<ConfigMap, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<ConfigMap, UnmarshalError>)
         ensures
             res.is_Ok() == ConfigMapView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == ConfigMapView::unmarshal(obj@).get_Ok_0(),
@@ -104,7 +104,7 @@ impl ConfigMap {
             let res = ConfigMap { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

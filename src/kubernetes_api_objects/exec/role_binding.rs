@@ -1,24 +1,20 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{resource::*, role_binding::*};
-use crate::vstd_ext::string_map::StringMap;
-use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 
 
-/// This definition is a wrapper of RoleBinding defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role_binding.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
+// This definition is a wrapper of RoleBinding defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/rbac/v1/role_binding.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
 
 #[verifier(external_body)]
 pub struct RoleBinding {
@@ -106,7 +102,7 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RoleBinding, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RoleBinding, UnmarshalError>)
         ensures
             res.is_Ok() == RoleBindingView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::unmarshal(obj@).get_Ok_0(),
@@ -116,7 +112,7 @@ impl RoleBinding {
             let res = RoleBinding { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

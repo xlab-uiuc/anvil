@@ -1,38 +1,40 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     affinity::*, api_resource::*, container::*, dynamic::*, object_meta::*, resource::*,
-    resource_requirements::*, toleration::*, volume::*,
+    toleration::*, volume::*,
 };
 use crate::kubernetes_api_objects::spec::{pod::*, resource::*};
-use crate::vstd_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 
-/// Pod is a type of API object used for grouping one or more containers that share storage and network resources.
-/// This is the smallest deployable unit in Kubernetes.
-///
-/// You can specify the Container(s), including the images and commands, and the Volume(s),
-/// such as a ConfigMap or a Secret, in the specification of a Pod (i.e., PodSpec).
-///
-/// This definition is a wrapper of Pod defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/pod.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
+// Pod is a type of API object used for grouping one or more containers that share storage and network resources.
+// This is the smallest deployable unit in Kubernetes.
+//
+// You can specify the Container(s), including the images and commands, and the Volume(s),
+// such as a ConfigMap or a Secret, in the specification of a Pod (i.e., PodSpec).
+//
+// This definition is a wrapper of Pod defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/pod.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/workloads/pods/.
 
 #[verifier(external_body)]
 pub struct Pod {
     inner: deps_hack::k8s_openapi::api::core::v1::Pod,
 }
 
-impl Pod {
-    pub spec fn view(&self) -> PodView;
+impl View for Pod {
+    type V = PodView;
 
+    spec fn view(&self) -> PodView;
+}
+
+impl Pod {
     #[verifier(external_body)]
     pub fn default() -> (pod: Pod)
         ensures pod@ == PodView::default(),
@@ -97,9 +99,9 @@ impl Pod {
         DynamicObject::from_kube(deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap())
     }
 
-    /// Convert a DynamicObject to a Pod
+    // Convert a DynamicObject to a Pod
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, UnmarshalError>)
         ensures
             res.is_Ok() == PodView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == PodView::unmarshal(obj@).get_Ok_0(),
@@ -109,7 +111,7 @@ impl Pod {
             let res = Pod { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

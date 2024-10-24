@@ -1,25 +1,21 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-};
-use crate::vstd_ext::string_map::StringMap;
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, object_meta::*, resource::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 
-/// RoleView is the ghost type of Role.
-/// It is supposed to be used in spec and proof code.
+// RoleView is the ghost type of Role.
+
 
 pub struct RoleView {
     pub metadata: ObjectMetaView,
     pub policy_rules: Option<Seq<PolicyRuleView>>,
 }
 
-type RoleSpecView = (Option<Seq<PolicyRuleView>>, ());
+type RoleSpecView = Option<Seq<PolicyRuleView>>;
 
 impl RoleView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> RoleView {
@@ -67,7 +63,7 @@ impl ResourceView for RoleView {
     proof fn object_ref_is_well_formed() {}
 
     open spec fn spec(self) -> RoleSpecView {
-        (self.policy_rules, ())
+        self.policy_rules
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -78,22 +74,22 @@ impl ResourceView for RoleView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: RoleView::marshal_spec((self.policy_rules, ())),
+            spec: RoleView::marshal_spec(self.policy_rules),
             status: RoleView::marshal_status(empty_status()),
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !RoleView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !RoleView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(RoleView {
                 metadata: obj.metadata,
-                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }
@@ -109,11 +105,11 @@ impl ResourceView for RoleView {
 
     closed spec fn marshal_spec(s: RoleSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<RoleSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<RoleSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

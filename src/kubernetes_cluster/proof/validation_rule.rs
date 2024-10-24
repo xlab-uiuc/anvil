@@ -29,18 +29,18 @@ pub open spec fn marshal_preserves_status() -> bool {
             ==> K::unmarshal_status(d.status).get_Ok_0() == K::unmarshal(d).get_Ok_0().status()
 }
 
-/// The relexitivity allows the metadata to be different.
-pub open spec fn is_reflexive_and_transitive() -> bool {
+// The relexitivity allows the metadata to be different.
+pub open spec fn transition_validation_is_reflexive_and_transitive() -> bool {
     &&& forall |x: K, y: K|  (x.spec() == y.spec() && x.status() == y.status()) ==> #[trigger] K::transition_validation(x, y)
     &&& forall |x: K, y: K, z: K| #![trigger K::transition_validation(x, y), K::transition_validation(y, z)]
         K::transition_validation(x, y) && K::transition_validation(y, z) ==> K::transition_validation(x, z)
 }
 
-/// This spec and also this module are targeted at the relations of the three versions of custom resource object. We know that
-/// if cr is updated, the old and new object are subject to the transition rule (if any). Since scheduled_cr and triggering_cr
-/// are derived from the cr in etcd, they are either equal to or satisfy the transition rule with etcd cr.
-///
-/// When the transition rule is transitive, we can determine a linear order of the three custom resource objects.
+// This spec and also this module are targeted at the relations of the three versions of custom resource object. We know that
+// if cr is updated, the old and new object are subject to the transition rule (if any). Since scheduled_cr and triggering_cr
+// are derived from the cr in etcd, they are either equal to or satisfy the transition rule with etcd cr.
+//
+// When the transition rule is transitive, we can determine a linear order of the three custom resource objects.
 pub open spec fn transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)(s)
@@ -51,10 +51,10 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr
 
 pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec: TempPred<Self>, cr: K)
     requires
-        K::kind() == Kind::CustomResourceKind,
+        K::kind().is_CustomResourceKind(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
-        Self::is_reflexive_and_transitive(),
+        Self::transition_validation_is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr)))),
@@ -81,8 +81,8 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> Stat
 
 proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: TempPred<Self>, cr: K)
     requires
-        K::kind() == Kind::CustomResourceKind,
-        Self::is_reflexive_and_transitive(),
+        K::kind().is_CustomResourceKind(),
+        Self::transition_validation_is_reflexive_and_transitive(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
         spec.entails(lift_state(Self::init())),
@@ -174,10 +174,10 @@ pub open spec fn transition_rule_applies_to_scheduled_and_triggering_cr(cr: K) -
 
 proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr: K)
     requires
-        K::kind() == Kind::CustomResourceKind,
+        K::kind().is_CustomResourceKind(),
         Self::marshal_preserves_spec(),
         Self::marshal_preserves_status(),
-        Self::is_reflexive_and_transitive(),
+        Self::transition_validation_is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
@@ -269,8 +269,8 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         }
     }
     init_invariant(spec, Self::init(), next, inv);
-    always_weaken_temp(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_etcd_and_triggering_cr(cr)));
-    always_weaken_temp(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)));
+    always_weaken(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_etcd_and_triggering_cr(cr)));
+    always_weaken(spec, lift_state(inv), lift_state(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)));
 }
 
 }

@@ -1,21 +1,20 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::label_selector::*;
-use crate::vstd_ext::{string_map::*, string_view::*};
-use vstd::{prelude::*, string::*};
+use crate::vstd_ext::string_map::*;
+use vstd::prelude::*;
 
 verus! {
 
-/// LabelSelector is used to select objects that are relevant by matching the labels.
-/// Labels are key/value pairs that are attached to objects such as Pods.
-///
-/// This definition is a wrapper of LabelSelector defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/label_selector.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors.
+// LabelSelector is used to select objects that are relevant by matching the labels.
+// Labels are key/value pairs that are attached to objects such as Pods.
+//
+// This definition is a wrapper of LabelSelector defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/label_selector.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors.
 
 #[verifier(external_body)]
 pub struct LabelSelector {

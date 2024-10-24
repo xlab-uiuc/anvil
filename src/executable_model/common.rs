@@ -1,5 +1,5 @@
 use crate::executable_model::string_set::*;
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{api_resource::ApiResource, prelude::*};
 use crate::kubernetes_api_objects::spec::prelude::*;
 use crate::kubernetes_cluster::spec::{
@@ -15,7 +15,7 @@ use vstd::string::*;
 // because it internally uses vstd::string::String, which does not implement such traits.
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct ExternalObjectRef {
-    pub kind: Kind,
+    pub kind: KindExec,
     pub name: std::string::String,
     pub namespace: std::string::String,
 }
@@ -33,7 +33,7 @@ impl KubeObjectRef {
 verus! {
 
 pub struct KubeObjectRef {
-    pub kind: Kind,
+    pub kind: KindExec,
     pub name: String,
     pub namespace: String,
 }
@@ -42,7 +42,7 @@ impl View for KubeObjectRef {
     type V = ObjectRef;
     open spec fn view(&self) -> ObjectRef {
         ObjectRef {
-            kind: self.kind,
+            kind: self.kind@,
             name: self.name@,
             namespace: self.namespace@,
         }
@@ -64,20 +64,20 @@ impl std::clone::Clone for KubeObjectRef {
 impl ApiResource {
     // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
+    pub fn kind(&self) -> (kind: KindExec)
+        ensures kind@ == self@.kind,
     {
         match self.as_kube_ref().kind.as_str() {
-            "ConfigMap" => Kind::ConfigMapKind,
-            "DaemonSet" => Kind::DaemonSetKind,
-            "PersistentVolumeClaim" => Kind::PersistentVolumeClaimKind,
-            "Pod" => Kind::PodKind,
-            "Role" => Kind::RoleKind,
-            "RoleBinding" => Kind::RoleBindingKind,
-            "StatefulSet" => Kind::StatefulSetKind,
-            "Service" => Kind::ServiceKind,
-            "ServiceAccount" => Kind::ServiceAccountKind,
-            "Secret" => Kind::SecretKind,
+            "ConfigMap" => KindExec::ConfigMapKind,
+            "DaemonSet" => KindExec::DaemonSetKind,
+            "PersistentVolumeClaim" => KindExec::PersistentVolumeClaimKind,
+            "Pod" => KindExec::PodKind,
+            "Role" => KindExec::RoleKind,
+            "RoleBinding" => KindExec::RoleBindingKind,
+            "StatefulSet" => KindExec::StatefulSetKind,
+            "Service" => KindExec::ServiceKind,
+            "ServiceAccount" => KindExec::ServiceAccountKind,
+            "Secret" => KindExec::SecretKind,
             _ => panic!(), // We assume the DynamicObject won't be a custom object
         }
     }
@@ -154,23 +154,23 @@ impl DynamicObjectView {
 impl DynamicObject {
     // This kind() is not a perfect implementation but it is sufficient for conformance tests.
     #[verifier(external_body)]
-    pub fn kind(&self) -> (kind: Kind)
-        ensures kind == self@.kind,
+    pub fn kind(&self) -> (kind: KindExec)
+        ensures kind@ == self@.kind,
     {
         if self.as_kube_ref().types.is_none() {
             panic!();
         }
         match self.as_kube_ref().types.as_ref().unwrap().kind.as_str() {
-            "ConfigMap" => Kind::ConfigMapKind,
-            "DaemonSet" => Kind::DaemonSetKind,
-            "PersistentVolumeClaim" => Kind::PersistentVolumeClaimKind,
-            "Pod" => Kind::PodKind,
-            "Role" => Kind::RoleKind,
-            "RoleBinding" => Kind::RoleBindingKind,
-            "StatefulSet" => Kind::StatefulSetKind,
-            "Service" => Kind::ServiceKind,
-            "ServiceAccount" => Kind::ServiceAccountKind,
-            "Secret" => Kind::SecretKind,
+            "ConfigMap" => KindExec::ConfigMapKind,
+            "DaemonSet" => KindExec::DaemonSetKind,
+            "PersistentVolumeClaim" => KindExec::PersistentVolumeClaimKind,
+            "Pod" => KindExec::PodKind,
+            "Role" => KindExec::RoleKind,
+            "RoleBinding" => KindExec::RoleBindingKind,
+            "StatefulSet" => KindExec::StatefulSetKind,
+            "Service" => KindExec::ServiceKind,
+            "ServiceAccount" => KindExec::ServiceAccountKind,
+            "Secret" => KindExec::SecretKind,
             _ => panic!(), // We assume the DynamicObject won't be a custom object
         }
     }
@@ -500,7 +500,7 @@ impl StatefulSet {
 pub trait CustomResource: View
 where Self::V: CustomResourceView, Self: std::marker::Sized
 {
-    fn unmarshal(obj: DynamicObject) -> (res: Result<Self, ParseDynamicObjectError>)
+    fn unmarshal(obj: DynamicObject) -> (res: Result<Self, UnmarshalError>)
         ensures
             res.is_Ok() == Self::V::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == Self::V::unmarshal(obj@).get_Ok_0();
@@ -539,7 +539,7 @@ impl ResourceView for SimpleCRView {
 
     open spec fn metadata(self) -> ObjectMetaView { self.metadata }
 
-    open spec fn kind() -> Kind { Kind::CustomResourceKind }
+    open spec fn kind() -> Kind { Kind::CustomResourceKind("simple"@) }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
@@ -564,13 +564,13 @@ impl ResourceView for SimpleCRView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !SimpleCRView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(SimpleCRView {
                 metadata: obj.metadata,
@@ -591,11 +591,11 @@ impl ResourceView for SimpleCRView {
 
     closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<SimpleCRStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<SimpleCRStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
@@ -612,6 +612,12 @@ impl ResourceView for SimpleCRView {
 
 impl CustomResourceView for SimpleCRView {
     proof fn kind_is_custom_resource() {}
+
+    open spec fn spec_status_validation(obj_spec: Self::Spec, obj_status: Self::Status) -> bool { true }
+
+    proof fn validation_result_determined_by_spec_and_status()
+        ensures forall |obj: Self| #[trigger] obj.state_validation() == Self::spec_status_validation(obj.spec(), obj.status())
+    {}
 }
 
 #[verifier(external_body)]
@@ -625,7 +631,7 @@ impl View for SimpleCR {
 
 impl CustomResource for SimpleCR {
     #[verifier(external_body)]
-    fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, ParseDynamicObjectError>)
+    fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, UnmarshalError>)
         ensures
             res.is_Ok() == SimpleCRView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::unmarshal(obj@).get_Ok_0(),

@@ -1,21 +1,19 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::resource::*;
 use crate::kubernetes_api_objects::spec::owner_reference::*;
-use crate::vstd_ext::{string_map::*, string_view::*};
-use vstd::{prelude::*, string::*};
+use vstd::prelude::*;
 
 verus! {
 
 
-/// OwnerReference contains enough information to let you identify an owning object.
-/// An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
-///
-/// This definition is a wrapper of OwnerReference defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/owner_reference.rs.
-/// It is supposed to be used in exec controller code.
-///
+// OwnerReference contains enough information to let you identify an owning object.
+// An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
+//
+// This definition is a wrapper of OwnerReference defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/owner_reference.rs.
+// It is supposed to be used in exec controller code.
+//
 
 #[verifier(external_body)]
 pub struct OwnerReference {

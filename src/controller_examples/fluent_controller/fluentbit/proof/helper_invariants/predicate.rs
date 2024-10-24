@@ -41,6 +41,7 @@ pub open spec fn the_object_in_schedule_satisfies_state_validation() -> StatePre
         forall |key: ObjectRef|
         #[trigger] s.scheduled_reconciles().contains_key(key)
         && key.kind.is_CustomResourceKind()
+        && key.kind == FluentBitView::kind()
         ==> s.scheduled_reconciles()[key].state_validation()
     }
 }
@@ -51,6 +52,7 @@ pub open spec fn cr_objects_in_etcd_satisfy_state_validation() -> StatePred<FBCl
         forall |key: ObjectRef|
         #[trigger] s.resources().contains_key(key)
         && key.kind.is_CustomResourceKind()
+        && key.kind == FluentBitView::kind()
         ==> FluentBitView::unmarshal(s.resources()[key]).is_Ok()
             && FluentBitView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
     }
@@ -109,12 +111,12 @@ pub open spec fn resource_create_response_msg(key: ObjectRef, s: FBCluster) -> s
         )
 }
 
-/// This spec tells that when the reconciler is at AfterGetDaemonSet, and there is a matched response, the reponse must be
-/// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
-/// daemon_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
-/// so we need this extra spec and lemma.
-///
-/// If we don't have this, we have no idea of what is inside the response message.
+// This spec tells that when the reconciler is at AfterGetDaemonSet, and there is a matched response, the reponse must be
+// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
+// daemon_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
+// so we need this extra spec and lemma.
+//
+// If we don't have this, we have no idea of what is inside the response message.
 pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     sub_resource: SubResource, fb: FluentBitView
 ) -> StatePred<FBCluster> {

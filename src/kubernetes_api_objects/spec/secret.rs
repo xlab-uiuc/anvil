@@ -1,10 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-};
-use crate::vstd_ext::string_map::*;
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, object_meta::*, resource::*};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -15,7 +12,7 @@ pub struct SecretView {
     pub data: Option<Map<StringView, StringView>>, // For view, <String, String> map is used instead of <String, Bytestring> map for now.
 }
 
-type SecretSpecView = (Option<Map<StringView, StringView>>, ());
+type SecretSpecView = Option<Map<StringView, StringView>>;
 
 impl SecretView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> SecretView {
@@ -61,7 +58,7 @@ impl ResourceView for SecretView {
     }
 
     open spec fn spec(self) -> SecretSpecView {
-        (self.data, ())
+        self.data
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -74,22 +71,22 @@ impl ResourceView for SecretView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: SecretView::marshal_spec((self.data, ())),
+            spec: SecretView::marshal_spec(self.data),
             status: SecretView::marshal_status(empty_status()),
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SecretView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !SecretView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !SecretView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(SecretView {
                 metadata: obj.metadata,
-                data: SecretView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                data: SecretView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }
@@ -105,11 +102,11 @@ impl ResourceView for SecretView {
 
     open spec fn marshal_spec(s: SecretSpecView) -> Value;
 
-    open spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, ParseDynamicObjectError>;
+    open spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

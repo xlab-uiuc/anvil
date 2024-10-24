@@ -1,25 +1,24 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, dynamic::*, object_meta::*, resource::*,
 };
 use crate::kubernetes_api_objects::spec::{resource::*, secret::*};
 use crate::vstd_ext::string_map::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
 
-/// Secret is a type of API object used to store confidential data in key-value pairs.
-/// A Secret object can be used to set environment variables or configuration files
-/// in a Volume mounted to a Pod.
-///
-/// This definition is a wrapper of Secret defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/secret.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/concepts/configuration/secret/.
+// Secret is a type of API object used to store confidential data in key-value pairs.
+// A Secret object can be used to set environment variables or configuration files
+// in a Volume mounted to a Pod.
+//
+// This definition is a wrapper of Secret defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/secret.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/concepts/configuration/secret/.
 
 #[verifier(external_body)]
 pub struct Secret {
@@ -117,7 +116,7 @@ impl Secret {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Secret, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Secret, UnmarshalError>)
         ensures
             res.is_Ok() == SecretView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == SecretView::unmarshal(obj@).get_Ok_0(),
@@ -127,7 +126,7 @@ impl Secret {
             let res = Secret { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }

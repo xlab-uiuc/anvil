@@ -1,18 +1,14 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-};
-use crate::vstd_ext::string_map::StringMap;
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, object_meta::*, resource::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 
-/// ServiceView is the ghost type of Service.
-/// It is supposed to be used in spec and proof code.
+// ServiceView is the ghost type of Service.
+
 
 pub struct ServiceView {
     pub metadata: ObjectMetaView,
@@ -85,13 +81,13 @@ impl ResourceView for ServiceView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ServiceView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ServiceView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !ServiceView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(ServiceView {
                 metadata: obj.metadata,
@@ -112,11 +108,11 @@ impl ResourceView for ServiceView {
 
     closed spec fn marshal_spec(s: Option<ServiceSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<ServiceStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<ServiceStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<ServiceStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

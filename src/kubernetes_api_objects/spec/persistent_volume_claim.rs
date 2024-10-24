@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*, volume_resource_requirements::*,
+    common::*, dynamic::*, object_meta::*, resource::*, volume_resource_requirements::*,
 };
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
 
 verus! {
 
-/// PersistentVolumeClaimView is the ghost type of PersistentVolumeClaim.
-/// It is supposed to be used in spec and proof code.
+// PersistentVolumeClaimView is the ghost type of PersistentVolumeClaim.
+
 
 pub struct PersistentVolumeClaimView {
     pub metadata: ObjectMetaView,
@@ -84,13 +83,13 @@ impl ResourceView for PersistentVolumeClaimView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<PersistentVolumeClaimView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<PersistentVolumeClaimView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(PersistentVolumeClaimView {
                 metadata: obj.metadata,
@@ -111,11 +110,11 @@ impl ResourceView for PersistentVolumeClaimView {
 
     closed spec fn marshal_spec(s: Option<PersistentVolumeClaimSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<PersistentVolumeClaimSpecView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<PersistentVolumeClaimSpecView>, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<PersistentVolumeClaimStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<PersistentVolumeClaimStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<PersistentVolumeClaimStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

@@ -1,21 +1,20 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::exec::{owner_reference::*, resource::*};
 use crate::kubernetes_api_objects::spec::object_meta::*;
 use crate::vstd_ext::{string_map::*, string_view::*};
-use vstd::{prelude::*, string::*};
+use vstd::prelude::*;
 
 verus! {
 
-/// ObjectMeta contains the metadata that all Kubernetes resource objects must have,
-/// including name, namespace, uid, and so on.
-///
-/// This definition is a wrapper of ObjectMeta defined at
-/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/object_meta.rs.
-/// It is supposed to be used in exec controller code.
-///
-/// More detailed information: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/.
+// ObjectMeta contains the metadata that all Kubernetes resource objects must have,
+// including name, namespace, uid, and so on.
+//
+// This definition is a wrapper of ObjectMeta defined at
+// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/object_meta.rs.
+// It is supposed to be used in exec controller code.
+//
+// More detailed information: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/.
 
 #[verifier(external_body)]
 pub struct ObjectMeta {

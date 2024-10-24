@@ -1,16 +1,14 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::exec::{object_meta::*, owner_reference::*, resource::*};
-use crate::kubernetes_api_objects::spec::{common::*, dynamic::*};
-use crate::vstd_ext::string_view::*;
+use crate::kubernetes_api_objects::exec::{object_meta::*, resource::*};
+use crate::kubernetes_api_objects::spec::dynamic::*;
 use vstd::prelude::*;
 
 verus! {
 
-/// DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
-/// We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
-/// for all kinds of Kubernetes resource objects without exhaustive pattern matching.
+// DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
+// We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
+// for all kinds of Kubernetes resource objects without exhaustive pattern matching.
 
 #[verifier(external_body)]
 pub struct DynamicObject {

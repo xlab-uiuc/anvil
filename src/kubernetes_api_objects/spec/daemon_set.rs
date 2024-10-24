@@ -2,19 +2,14 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, label_selector::*, marshal::*, object_meta::*, pod_template_spec::*,
-    resource::*,
+    common::*, dynamic::*, label_selector::*, object_meta::*, pod_template_spec::*, resource::*,
 };
-use crate::vstd_ext::string_map::*;
-use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 
-/// DaemonSetView is the ghost type of DaemonSet.
-/// It is supposed to be used in spec and proof code.
+// DaemonSetView is the ghost type of DaemonSet.
+
 
 pub struct DaemonSetView {
     pub metadata: ObjectMetaView,
@@ -85,13 +80,13 @@ impl ResourceView for DaemonSetView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<DaemonSetView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !DaemonSetView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(DaemonSetView {
                 metadata: obj.metadata,
@@ -112,11 +107,11 @@ impl ResourceView for DaemonSetView {
 
     closed spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, UnmarshalError>;
 
     closed spec fn marshal_status(s: Option<DaemonSetStatusView>) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

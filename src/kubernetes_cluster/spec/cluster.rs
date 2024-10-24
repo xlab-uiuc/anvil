@@ -10,30 +10,33 @@ use crate::kubernetes_cluster::spec::{
     external_api::types::ExternalAPIState,
     message::*,
     network::types::NetworkState,
+    pod_event::types::PodEventState,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-/// The Cluster struct is an abstraction of the compound state machine of the kubernetes cluster. It contains a number of
-/// fields for describing the state of those components as well as all the methods of the specifications and lemmas of the
-/// system.
-///
-/// It takes three generics, which should be essentially one: R is the type of Reconciler and K and E are the two generics
-/// fed to R.
-///
-/// By using such a struct, we don't have to let all the functions carry the generics; and therefore we don't need to
-/// specify the generics whenever calling those spec or proof functions.
+// The Cluster struct is an abstraction of the compound state machine of the kubernetes cluster. It contains a number of
+// fields for describing the state of those components as well as all the methods of the specifications and lemmas of the
+// system.
+//
+// It takes three generics, which should be essentially one: R is the type of Reconciler and K and E are the two generics
+// fed to R.
+//
+// By using such a struct, we don't have to let all the functions carry the generics; and therefore we don't need to
+// specify the generics whenever calling those spec or proof functions.
 pub struct Cluster<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub kubernetes_api_state: ApiServerState,
     pub controller_state: ControllerState<K, E, R>,
     pub client_state: ClientState,
     pub network_state: NetworkState<E::Input, E::Output>,
     pub external_api_state: ExternalAPIState<E>,
+    pub pod_event_state: PodEventState,
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
     pub transient_failure_enabled: bool,
+    pub pod_event_enabled: bool,
 }
 
 impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {

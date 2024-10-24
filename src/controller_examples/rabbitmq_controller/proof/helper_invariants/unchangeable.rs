@@ -34,8 +34,8 @@ verus! {
 // And the following lemmas are more powerful because it considers the cases when the objects in update request messages
 // and etcd rely on each other to show they satisfy those properties.
 
-/// Objects in create request messages satisfying the properties can be proved along because it doesn't have to do with
-/// how the objects in etcd look like now.
+// Objects in create request messages satisfying the properties can be proved along because it doesn't have to do with
+// how the objects in etcd look like now.
 pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: RMQCluster| {
@@ -46,7 +46,7 @@ pub open spec fn object_in_every_create_request_msg_satisfies_unchangeable(sub_r
     }
 }
 
-/// On the contrary, we should combine the proof of update request message and etcd because they rely on each other.
+// On the contrary, we should combine the proof of update request message and etcd because they rely on each other.
 pub open spec fn object_in_every_update_request_msg_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: RMQCluster| {
@@ -151,7 +151,7 @@ pub proof fn lemma_always_object_in_etcd_satisfies_unchangeable(spec: TempPred<R
         object_in_every_update_request_msg_satisfies_unchangeable_induction(sub_resource, rabbitmq, s, s_prime);
     }
     init_invariant(spec, RMQCluster::init(), next, inv);
-    always_weaken_temp(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)));
+    always_weaken(spec, lift_state(inv), lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)));
 }
 
 pub proof fn object_in_etcd_satisfies_unchangeable_induction(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)

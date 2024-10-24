@@ -1,19 +1,14 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::*;
-use crate::kubernetes_api_objects::spec::{
-    common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-};
-use crate::vstd_ext::string_map::StringMap;
+use crate::kubernetes_api_objects::spec::{common::*, dynamic::*, object_meta::*, resource::*};
 use crate::vstd_ext::string_view::StringView;
 use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
 
 verus! {
 
-/// RoleBindingView is the ghost type of RoleBinding.
-/// It is supposed to be used in spec and proof code.
+// RoleBindingView is the ghost type of RoleBinding.
+
 
 pub struct RoleBindingView {
     pub metadata: ObjectMetaView,
@@ -93,13 +88,13 @@ impl ResourceView for RoleBindingView {
         }
     }
 
-    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleBindingView, UnmarshalError> {
         if obj.kind != Self::kind() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else if !RoleBindingView::unmarshal_status(obj.status).is_Ok() {
-            Err(ParseDynamicObjectError::UnmarshalError)
+            Err(())
         } else {
             Ok(RoleBindingView {
                 metadata: obj.metadata,
@@ -120,11 +115,11 @@ impl ResourceView for RoleBindingView {
 
     closed spec fn marshal_spec(s: RoleBindingSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, UnmarshalError>;
 
     closed spec fn marshal_status(s: EmptyStatusView) -> Value;
 
-    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, UnmarshalError>;
 
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}

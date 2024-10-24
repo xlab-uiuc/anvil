@@ -16,6 +16,7 @@ use crate::kubernetes_cluster::spec::{
     },
     external_api::types::{ExternalAPIAction, ExternalAPIActionInput},
     message::*,
+    pod_event::types::{PodEventActionInput, PodEventState},
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::{action::*, state_machine::*};
@@ -31,11 +32,13 @@ pub enum Step<Msg> {
     ControllerStep((Option<Msg>, Option<ObjectRef>)),
     ClientStep(),
     ExternalAPIStep(Option<Msg>),
+    PodEventStep(),
     ScheduleControllerReconcileStep(ObjectRef),
     RestartController(),
     DisableCrash(),
     FailTransientlyStep((Msg, APIError)),
     DisableTransientFailure(),
+    DisablePodEvent(),
     StutterStep(),
 }
 
@@ -49,16 +52,18 @@ pub open spec fn init() -> StatePred<Self> {
         &&& (Self::client().init)(s.client_state)
         &&& (Self::network().init)(s.network_state)
         &&& (Self::external_api().init)(s.external_api_state)
+        &&& (Self::pod_event().init)(s.pod_event_state)
         &&& s.crash_enabled
         &&& s.transient_failure_enabled
+        &&& s.pod_event_enabled
     }
 }
 
-/// kubernetes_api_next models the behavior that the Kubernetes API server (and its backend, a key-value store)
-/// handles one request from some client or controller that gets/lists/creates/updates/deletes some object(s).
-/// Handling each create/update/delete request will potentially change the objects stored in the key-value store
-/// (etcd by default).
-/// The persistent state stored in the key-value store is modeled as a Map.
+// kubernetes_api_next models the behavior that the Kubernetes API server (and its backend, a key-value store)
+// handles one request from some client or controller that gets/lists/creates/updates/deletes some object(s).
+// Handling each create/update/delete request will potentially change the objects stored in the key-value store
+// (etcd by default).
+// The persistent state stored in the key-value store is modeled as a Map.
 pub open spec fn kubernetes_api_next() -> Action<Self, Option<MsgType<E>>, ()> {
     let result = |input: Option<MsgType<E>>, s: Self| {
         let host_result = Self::kubernetes_api().next_result(
@@ -90,10 +95,10 @@ pub open spec fn kubernetes_api_next() -> Action<Self, Option<MsgType<E>>, ()> {
     }
 }
 
-/// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
-/// The cluster state machine chooses which built-in controller to run and which object to reconcile.
-/// The behavior of each built-in controller is modeled as a function that takes the current cluster state
-/// (objects stored in the key-value store) and returns request(s) to update the cluster state.
+// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
+// The cluster state machine chooses which built-in controller to run and which object to reconcile.
+// The behavior of each built-in controller is modeled as a function that takes the current cluster state
+// (objects stored in the key-value store) and returns request(s) to update the cluster state.
 pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerChoice, ObjectRef), ()> {
     let result = |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
         let host_result = Self::builtin_controllers().next_result(
@@ -129,10 +134,10 @@ pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerCh
     }
 }
 
-/// external_api_next models the behavior of some external system that handles the requests from the controller.
-/// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
-/// It delivers an external request message to the external system, runs E::transition, and puts the response message
-/// into the network.
+// external_api_next models the behavior of some external system that handles the requests from the controller.
+// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
+// It delivers an external request message to the external system, runs E::transition, and puts the response message
+// into the network.
 pub open spec fn external_api_next() -> Action<Self, Option<MsgType<E>>, ()> {
     let result = |input: Option<MsgType<E>>, s: Self| {
         let host_result = Self::external_api().next_result(
@@ -199,26 +204,26 @@ pub open spec fn controller_next() -> Action<Self, (Option<MsgType<E>>, Option<O
     }
 }
 
-/// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
-/// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
-/// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
-/// action allow us to prove reconcile is always eventually scheduled.
-///
-/// This action abstracts away a lot of implementation details in the Kubernetes API and kube framework,
-/// such as the list-then-watch pattern.
-///
-/// In general, this action assumes the following key behavior:
-/// (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
-///   -- so the first creation event will schedule a reconcile
-/// (2) The shim layer always re-queues `reconcile_with` unless the corresponding cr object does not exist,
-/// and the kube library always eventually invokes the re-queued `reconcile_with`
-///   -- so as long as the cr still exists, the reconcile will still be scheduled over and over again
-/// (3) The shim layer always performs a quorum read to etcd to get the cr object and passes it to `reconcile_core`
-///   -- so the reconcile is scheduled with the most recent view of the cr object when this action happens
-/// (4) The shim layer never invokes `reconcile_core` if the cr object does not exist
-///   -- this is not assumed by `schedule_controller_reconcile` because it never talks about what should happen if the
-///   cr object does not exist, but it is still important because `schedule_controller_reconcile` is the only
-///   action that can schedule a reconcile in our state machine.
+// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
+// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
+// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
+// action allow us to prove reconcile is always eventually scheduled.
+//
+// This action abstracts away a lot of implementation details in the Kubernetes API and kube framework,
+// such as the list-then-watch pattern.
+//
+// In general, this action assumes the following key behavior:
+// (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
+//   -- so the first creation event will schedule a reconcile
+// (2) The shim layer always re-queues `reconcile_with` unless the corresponding cr object does not exist,
+// and the kube library always eventually invokes the re-queued `reconcile_with`
+//   -- so as long as the cr still exists, the reconcile will still be scheduled over and over again
+// (3) The shim layer always performs a quorum read to etcd to get the cr object and passes it to `reconcile_core`
+//   -- so the reconcile is scheduled with the most recent view of the cr object when this action happens
+// (4) The shim layer never invokes `reconcile_core` if the cr object does not exist
+//   -- this is not assumed by `schedule_controller_reconcile` because it never talks about what should happen if the
+//   cr object does not exist, but it is still important because `schedule_controller_reconcile` is the only
+//   action that can schedule a reconcile in our state machine.
 pub open spec fn schedule_controller_reconcile() -> Action<Self, ObjectRef, ()> {
     Action {
         precondition: |input: ObjectRef, s: Self| {
@@ -238,7 +243,7 @@ pub open spec fn schedule_controller_reconcile() -> Action<Self, ObjectRef, ()> 
     }
 }
 
-/// This action restarts the crashed controller.
+// This action restarts the crashed controller.
 pub open spec fn restart_controller() -> Action<Self, (), ()> {
     Action {
         precondition: |input: (), s: Self| {
@@ -253,9 +258,9 @@ pub open spec fn restart_controller() -> Action<Self, (), ()> {
     }
 }
 
-/// This action disallows the controller to crash from this point.
-/// This is used to constraint the crash behavior for liveness proof:
-/// the controller eventually stops crashing.
+// This action disallows the controller to crash from this point.
+// This is used to constraint the crash behavior for liveness proof:
+// the controller eventually stops crashing.
 pub open spec fn disable_crash() -> Action<Self, (), ()> {
     Action {
         precondition: |input: (), s: Self| {
@@ -270,8 +275,8 @@ pub open spec fn disable_crash() -> Action<Self, (), ()> {
     }
 }
 
-/// This action fails a request sent to the Kubernetes API in a transient way:
-/// the request fails with timeout error or conflict error (caused by resource version conflicts).
+// This action fails a request sent to the Kubernetes API in a transient way:
+// the request fails with timeout error or conflict error (caused by resource version conflicts).
 pub open spec fn fail_request_transiently() -> Action<Self, (MsgType<E>, APIError), ()> {
     let result = |input: (MsgType<E>, APIError), s: Self| {
         let req_msg = input.0;
@@ -303,9 +308,9 @@ pub open spec fn fail_request_transiently() -> Action<Self, (MsgType<E>, APIErro
     }
 }
 
-/// This action disallows the Kubernetes API to have transient failure from this point.
-/// This is used to constraint the transient error of Kubernetes APIs for liveness proof:
-/// the requests from the controller eventually stop being rejected by transient error.
+// This action disallows the Kubernetes API to have transient failure from this point.
+// This is used to constraint the transient error of Kubernetes APIs for liveness proof:
+// the requests from the controller eventually stop being rejected by transient error.
 pub open spec fn disable_transient_failure() -> Action<Self, (), ()> {
     Action {
         precondition: |input:(), s: Self| {
@@ -351,6 +356,52 @@ pub open spec fn client_next() -> Action<Self, (), ()> {
     }
 }
 
+pub open spec fn pod_event_next() -> Action<Self, (), ()> {
+    let result = |input: (), s: Self| {
+        let host_result = Self::pod_event().next_result(
+            s.rest_id_allocator,
+            s.pod_event_state
+        );
+        let msg_ops = MessageOps {
+            recv: None,
+            send: host_result.get_Enabled_1().send,
+        };
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
+
+        (host_result, network_result)
+    };
+    Action {
+        precondition: |input: (), s: Self| {
+            &&& s.pod_event_enabled
+            &&& result(input, s).0.is_Enabled()
+            &&& result(input, s).1.is_Enabled()
+        },
+        transition: |input: (), s: Self| {
+            let (host_result, network_result) = result(input, s);
+            (Self {
+                pod_event_state: host_result.get_Enabled_0(),
+                network_state: network_result.get_Enabled_0(),
+                rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                ..s
+            }, ())
+        },
+    }
+}
+
+pub open spec fn disable_pod_event() -> Action<Self, (), ()> {
+    Action {
+        precondition: |input:(), s: Self| {
+            true
+        },
+        transition: |input: (), s: Self| {
+            (Self {
+                pod_event_enabled: false,
+                ..s
+            }, ())
+        }
+    }
+}
+
 pub open spec fn stutter() -> Action<Self, (), ()> {
     Action {
         precondition: |input: (), s: Self| {
@@ -369,18 +420,20 @@ pub open spec fn next_step(s: Self, s_prime: Self, step: Step<MsgType<E>>) -> bo
         Step::ControllerStep(input) => Self::controller_next().forward(input)(s, s_prime),
         Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
         Step::ExternalAPIStep(input) => Self::external_api_next().forward(input)(s, s_prime),
+        Step::PodEventStep() => Self::pod_event_next().forward(())(s, s_prime),
         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => Self::restart_controller().forward(())(s, s_prime),
         Step::DisableCrash() => Self::disable_crash().forward(())(s, s_prime),
         Step::FailTransientlyStep(input) => Self::fail_request_transiently().forward(input)(s, s_prime),
         Step::DisableTransientFailure() => Self::disable_transient_failure().forward(())(s, s_prime),
+        Step::DisablePodEvent() => Self::disable_pod_event().forward(())(s, s_prime),
         Step::StutterStep() => Self::stutter().forward(())(s, s_prime),
     }
 }
 
-/// `next` chooses:
-/// * which host to take the next action (`Step`)
-/// * what input to feed to the chosen action
+// `next` chooses:
+// * which host to take the next action (`Step`)
+// * what input to feed to the chosen action
 pub open spec fn next() -> ActionPred<Self> {
     |s: Self, s_prime: Self| exists |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step)
 }
@@ -397,6 +450,7 @@ pub open spec fn sm_wf_spec() -> TempPred<Self> {
     .and(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)))
     .and(Self::disable_crash().weak_fairness(()))
     .and(Self::disable_transient_failure().weak_fairness(()))
+    .and(Self::disable_pod_event().weak_fairness(()))
 }
 
 pub open spec fn kubernetes_api_action_pre(action: ApiServerAction<E::Input, E::Output>, input: Option<MsgType<E>>) -> StatePred<Self> {
@@ -485,6 +539,10 @@ pub open spec fn crash_disabled() -> StatePred<Self> {
 // TODO: rename it!
 pub open spec fn busy_disabled() -> StatePred<Self> {
     |s: Self| !s.transient_failure_enabled
+}
+
+pub open spec fn pod_event_disabled() -> StatePred<Self> {
+    |s: Self| !s.pod_event_enabled
 }
 
 pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {

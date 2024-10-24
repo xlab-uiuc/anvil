@@ -1,12 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::exec::{
-    api_resource::*, dynamic::*, object_meta::*, resource::*,
-};
 use crate::kubernetes_api_objects::spec::volume::*;
-use crate::vstd_ext::string_view::*;
-use vstd::{prelude::*, seq_lib::*, string::*};
+use vstd::prelude::*;
 
 verus! {
 
@@ -82,7 +77,7 @@ impl Volume {
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Volume) -> Volume { Volume { inner } }
 
-    /// Methods for the fields that Anvil currently does not reason about
+    // Methods for the fields that Anvil currently does not reason about
 
     #[verifier(external_body)]
     pub fn set_empty_dir(&mut self, empty_dir: EmptyDirVolumeSource)

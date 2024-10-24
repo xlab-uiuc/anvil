@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
+use crate::kubernetes_api_objects::error::UnmarshalError;
 use crate::kubernetes_api_objects::exec::{
     api_resource::*, label_selector::*, pod_template_spec::*, prelude::*,
 };
@@ -12,7 +12,7 @@ use vstd::prelude::*;
 
 verus! {
 
-/// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
+// VReplicaSetReconcileState describes the local state with which the reconcile functions makes decisions.
 pub struct VReplicaSetReconcileState {
     pub reconcile_step: VReplicaSetReconcileStep,
     pub filtered_pods: Option<Vec<Pod>>,
@@ -39,7 +39,7 @@ impl View for VReplicaSetReconcileState {
 
     open spec fn view(&self) -> spec_types::VReplicaSetReconcileState {
         spec_types::VReplicaSetReconcileState {
-            reconcile_step: self.reconcile_step@,
+            reconcile_step: self.reconcile_step,
             filtered_pods: match self.filtered_pods {
                 Some(fp) => Some(fp@.map_values(|p: Pod| p@)),
                 None => None,
@@ -99,7 +99,7 @@ impl VReplicaSet {
     }
 
     #[verifier(external_body)]
-    pub fn unmarshal(obj: DynamicObject) -> (res: Result<VReplicaSet, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<VReplicaSet, UnmarshalError>)
         ensures
             res.is_Ok() == spec_types::VReplicaSetView::unmarshal(obj@).is_Ok(),
             res.is_Ok() ==> res.get_Ok_0()@ == spec_types::VReplicaSetView::unmarshal(obj@).get_Ok_0(),
@@ -109,7 +109,7 @@ impl VReplicaSet {
             let res = VReplicaSet { inner: parse_result.unwrap() };
             Ok(res)
         } else {
-            Err(ParseDynamicObjectError::ExecError)
+            Err(())
         }
     }
 }
