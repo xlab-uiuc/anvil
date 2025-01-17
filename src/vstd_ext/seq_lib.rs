@@ -110,9 +110,7 @@ pub proof fn seq_pred_false_on_all_elements_implies_empty_filter<A>(s: Seq<A>, p
     // If `pred` is false on every element, filter will return an empty sequence.
     {
         reveal(Seq::filter);
-        if s.len() == 0 {
-            assert (s.filter(pred).len() == 0);
-        } else {
+        if s.len() != 0 {
             let subseq = s.drop_last();
             // prove precondition for subseq and recursive call
             assert (forall |e: A| subseq.contains(e) ==> !pred(e)) by {
