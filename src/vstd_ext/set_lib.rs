@@ -11,18 +11,12 @@ pub proof fn finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
     requires s.finite(),
     ensures forall |e: A| #![auto] s.contains(e) <==> s.to_seq().contains(e)
     {
-        _finite_set_to_seq_contains_all_set_elements(s);
-        _finite_seq_to_set_contains_all_set_elements(s);
-    }
-
-pub proof fn _finite_set_to_seq_contains_all_set_elements<A>(s: Set<A>)
-    requires s.finite(),
-    ensures forall |e: A| #![auto] s.contains(e) ==> s.to_seq().contains(e),
-    decreases s.len()
-    {
         if s.len() != 0 {
             assert forall |e: A| #[trigger] s.contains(e) implies s.to_seq().contains(e) by {
                 _element_in_finite_set_exists_in_set_to_seq(s, e);
+            }
+            assert forall |e: A| #[trigger] s.to_seq().contains(e) implies s.contains(e) by {
+                _element_in_seq_exists_in_original_finite(s, e);
             }
         }
     }
@@ -46,18 +40,6 @@ pub proof fn _element_in_finite_set_exists_in_set_to_seq<A>(s: Set<A>, e: A)
                 assert (s.to_seq().subrange(1, s.to_seq().len() as int) == s.remove(e2).to_seq());
                 assert (s.to_seq().subrange(1, s.to_seq().len() as int).contains(e));
                 assert (s.to_seq().contains(e));
-            }
-        }
-    }
-
-pub proof fn _finite_seq_to_set_contains_all_set_elements<A>(s: Set<A>)
-    requires s.finite(),
-    ensures forall |e: A| #![auto] s.contains(e) <== s.to_seq().contains(e),
-    decreases s.len()
-    {
-        if s.len() != 0 {
-            assert forall |e: A| #[trigger] s.to_seq().contains(e) implies s.contains(e) by {
-                _element_in_seq_exists_in_original_finite(s, e);
             }
         }
     }
